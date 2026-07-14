@@ -54,6 +54,8 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import fastifyHelmet from '@fastify/helmet';
+import fastifyCompress from '@fastify/compress';
+
 import { AppModule } from './app.module';
 
 // Prisma uses BigInt for every primary key. JSON.stringify cannot serialise
@@ -69,7 +71,8 @@ async function bootstrap() {
   );
   const logger = new Logger('Bootstrap');
 
-  await app.register(fastifyHelmet as any);
+  await app.register(fastifyHelmet as any,{global: true});
+  await app.register(fastifyCompress as any);
   app.setGlobalPrefix('api');
 
   const origins = (process.env.CORS_ORIGINS ?? 'http://localhost:3000')

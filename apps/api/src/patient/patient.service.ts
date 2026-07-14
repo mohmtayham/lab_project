@@ -15,10 +15,12 @@ export class PatientService {
     return `P-${String(nextId).padStart(6, '0')}`;
   }
 
-  async create(dto: CreatePatientDto) {
-    return this.prisma.patient.create({
+async create(dto: CreatePatientDto) {
+    // 1. نستخدم المتغير created وننتظر النتيجة بدلاً من الإرجاع المباشر (return)
+    const created = await this.prisma.patient.create({
       data: {
-        patientNumber: await this.nextPatientNumber(),
+        // نمرر قيمة مؤقتة وعشوائية لتجنب خطأ الحقل الإجباري في Prisma
+        // patientNumber: `TEMP-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         name: dto.name,
         phone: dto.phone,
         email: dto.email,
@@ -26,6 +28,15 @@ export class PatientService {
         gender: dto.gender ?? 'unknown',
         dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
       },
+    });
+
+    // 2. الآن أصبح لدينا الـ id الحقيقي، نقوم بتوليد الرقم النهائي
+    const patientNumber = `P-${String(created.id).padStart(6, '0')}`;
+
+    // 3. نقوم بتحديث المريض بالرقم النهائي ونعيده كاستجابة للمستخدم
+    return this.prisma.patient.update({
+      where: { id: created.id },
+      data: { patientNumber },
     });
   }
 
@@ -59,9 +70,13 @@ export class PatientService {
     if (!patient) throw new NotFoundException('Patient not found');
     return patient;
   }
+  private async ensureExists(id: number): Promise<void> {
+    const exists = await this.prisma.patient.findUnique({ where: { id }, select: { id: true } });
+    if (!exists) throw new NotFoundException('Patient not found');
+  }
 
   async update(id: number, dto: UpdatePatientDto) {
-    await this.findOne(id);
+    await this.ensureExists(id);
     return this.prisma.patient.update({
       where: { id },
       data: {
@@ -72,7 +87,8 @@ export class PatientService {
   }
 
   async remove(id: number) {
-    await this.findOne(id);
+    await this.ensureExists(id);
+
     await this.prisma.patient.delete({ where: { id } });
     return { id, deleted: true };
   }

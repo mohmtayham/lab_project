@@ -1,4 +1,3 @@
-
 {
   "name": "labsphere-api",
   "version": "1.0.0",
@@ -22,7 +21,9 @@
     "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
-    "@fastify/helmet": "^12.0.1",
+    "@fastify/compress": "^7.0.3",
+    "@fastify/helmet": "^11.1.1",
+    "@fastify/static": "^6.12.0",
     "@nestjs/common": "^10.4.4",
     "@nestjs/config": "^3.2.3",
     "@nestjs/core": "^10.4.4",

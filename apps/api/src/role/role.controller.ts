@@ -2,6 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PrismaService } from '../prisma/prisma.service';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
+import { CacheHeader } from 'src/common/decorators/cache-header.decorator';
 
 @ApiTags('Roles')
 @ApiBearerAuth()
@@ -11,6 +12,8 @@ export class RoleController {
 
   @Get()
   @RequirePermissions('roles.read')
+  @CacheHeader(60)
+
   findAll() {
     return this.prisma.role.findMany({
       include: { rolePermissions: { include: { permission: true } } },
@@ -20,6 +23,7 @@ export class RoleController {
 
   @Get('permissions')
   @RequirePermissions('roles.read')
+   @CacheHeader(300)
   permissions() {
     return this.prisma.permission.findMany({ orderBy: { name: 'asc' } });
   }
