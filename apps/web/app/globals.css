@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: 'Inter', system-ui, sans-serif;
+}
+
+* {
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  @apply bg-ink-50 text-ink-900;
+}
+
+/* Thin, modern scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-ink-100 rounded-full;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-brand-200;
+  background-clip: padding-box;
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-2xl shadow-card border border-ink-100/70;
+  }
+  .input {
+    @apply w-full rounded-xl border border-ink-100 bg-white px-3.5 py-2.5 text-sm
+      outline-none transition-all placeholder:text-ink-800/40
+      focus:border-brand-400 focus:ring-4 focus:ring-brand-100;
+  }
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-ink-800;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5
+      text-sm font-semibold transition-all active:scale-[0.98]
+      disabled:opacity-60 disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white shadow-glow hover:bg-brand-700;
+  }
+  .btn-ghost {
+    @apply btn bg-ink-100/60 text-ink-800 hover:bg-ink-100;
+  }
+  .btn-danger {
+    @apply btn bg-red-500 text-white hover:bg-red-600;
+  }
+}
+
+/* Aurora background used on auth screens */
+.aurora {
+  background:
+    radial-gradient(45rem 45rem at 15% 10%, rgba(51, 125, 255, 0.25), transparent 60%),
+    radial-gradient(35rem 35rem at 90% 20%, rgba(120, 90, 255, 0.20), transparent 55%),
+    radial-gradient(40rem 40rem at 60% 100%, rgba(0, 200, 180, 0.18), transparent 55%);
+}

@@ -1,0 +1,356 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== ENUMS ====================
+
+enum Gender {
+  male
+  female
+  other
+  unknown
+}
+
+enum OrderStatus {
+  pending
+  approved
+  cancelled
+}
+
+enum RequestStatus {
+  pending
+  in_progress
+  completed
+  cancelled
+}
+
+enum RequestItemStatus {
+  pending
+  sampled
+  in_analysis
+  completed
+  rejected
+}
+
+enum SampleStatus {
+  collected
+  in_lab
+  processed
+  rejected
+}
+
+enum DeviceStatus {
+  active
+  maintenance
+  offline
+}
+
+enum ResultStatus {
+  pending
+  entered
+  reviewed
+  approved
+  rejected
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  refunded
+  cancelled
+}
+
+enum SupportStatus {
+  pending
+  approved
+  rejected
+}
+
+// ==================== IDENTITY / RBAC ====================
+
+model User {
+  id                 BigInt   @id @default(autoincrement())
+  name               String
+  email              String   @unique
+  phone              String?
+  password           String
+  isActive           Boolean  @default(true) @map("is_active")
+  hashedRefreshToken String?  @map("hashed_refresh_token")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  userRoles            UserRole[]
+  ordersAsDoctor       Order[]         @relation("OrderDoctor")
+  testRequestsCreated  TestRequest[]   @relation("RequestCreatedBy")
+  samplesCollected     Sample[]        @relation("SampleCollectedBy")
+  resultsEntered       Result[]        @relation("ResultEnteredBy")
+  resultsReviewed      Result[]        @relation("ResultReviewedBy")
+  resultsApproved      Result[]        @relation("ResultApprovedBy")
+  resultHistoryChanges ResultHistory[] @relation("ResultHistoryChangedBy")
+  notifications        Notification[]
+  auditLogs            AuditLog[]
+
+  @@map("users")
+}
+
+model Role {
+  id   BigInt @id @default(autoincrement())
+  name String @unique
+
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id   BigInt @id @default(autoincrement())
+  name String @unique
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model UserRole {
+  userId BigInt @map("user_id")
+  roleId BigInt @map("role_id")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       BigInt @map("role_id")
+  permissionId BigInt @map("permission_id")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+// ==================== CORE DOMAIN ====================
+
+model Patient {
+  id            BigInt    @id @default(autoincrement())
+  patientNumber String    @unique @map("patient_number")
+  name          String
+  phone         String?
+  email         String?
+  address       String?   @db.Text
+  gender        Gender    @default(unknown)
+  dateOfBirth   DateTime? @map("date_of_birth") @db.Date
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  orders          Order[]
+  payments        Payment[]
+  supportRequests SupportRequest[]
+
+  @@map("patients")
+}
+
+model Test {
+  id             BigInt  @id @default(autoincrement())
+  name           String
+  category       String?
+  sampleType     String? @map("sample_type")
+  price          Decimal @db.Decimal(10, 2)
+  loincCode      String? @map("loinc_code")
+  unit           String?
+  referenceRange String? @map("reference_range")
+
+  requestItems TestRequestItem[]
+
+  @@map("tests")
+}
+
+model Order {
+  id        BigInt      @id @default(autoincrement())
+  patientId BigInt      @map("patient_id")
+  doctorId  BigInt?     @map("doctor_id")
+  status    OrderStatus @default(pending)
+  notes     String?     @db.Text
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  patient  Patient       @relation(fields: [patientId], references: [id])
+  doctor   User?         @relation("OrderDoctor", fields: [doctorId], references: [id])
+  requests TestRequest[]
+  payments Payment[]
+
+  @@map("orders")
+}
+
+model TestRequest {
+  id        BigInt        @id @default(autoincrement())
+  orderId   BigInt        @map("order_id")
+  createdBy BigInt?       @map("created_by")
+  status    RequestStatus @default(pending)
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  order           Order             @relation(fields: [orderId], references: [id])
+  creator         User?             @relation("RequestCreatedBy", fields: [createdBy], references: [id])
+  items           TestRequestItem[]
+  samples         Sample[]
+  supportRequests SupportRequest[]
+
+  @@map("test_requests")
+}
+
+model TestRequestItem {
+  id        BigInt            @id @default(autoincrement())
+  requestId BigInt            @map("request_id")
+  testId    BigInt            @map("test_id")
+  status    RequestItemStatus @default(pending)
+
+  request      TestRequest   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  test         Test          @relation(fields: [testId], references: [id])
+  results      Result[]
+  paymentItems PaymentItem[]
+
+  @@map("test_request_items")
+}
+
+model Sample {
+  id          BigInt       @id @default(autoincrement())
+  requestId   BigInt       @map("request_id")
+  collectedBy BigInt?      @map("collected_by")
+  qrCode      String?      @unique @map("qr_code")
+  sampleType  String?      @map("sample_type")
+  status      SampleStatus @default(collected)
+  collectedAt DateTime?    @map("collected_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  request   TestRequest @relation(fields: [requestId], references: [id])
+  collector User?       @relation("SampleCollectedBy", fields: [collectedBy], references: [id])
+
+  @@map("samples")
+}
+
+model Device {
+  id           BigInt       @id @default(autoincrement())
+  name         String
+  status       DeviceStatus @default(active)
+  calibratedAt DateTime?    @map("calibrated_at")
+
+  results Result[]
+
+  @@map("devices")
+}
+
+model Result {
+  id            BigInt       @id @default(autoincrement())
+  requestItemId BigInt       @map("request_item_id")
+  deviceId      BigInt?      @map("device_id")
+  value         String?
+  comments      String?      @db.Text
+  status        ResultStatus @default(pending)
+  enteredBy     BigInt?      @map("entered_by")
+  reviewedBy    BigInt?      @map("reviewed_by")
+  approvedBy    BigInt?      @map("approved_by")
+  approvedAt    DateTime?    @map("approved_at")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  requestItem    TestRequestItem @relation(fields: [requestItemId], references: [id])
+  device         Device?         @relation(fields: [deviceId], references: [id])
+  enteredByUser  User?           @relation("ResultEnteredBy", fields: [enteredBy], references: [id])
+  reviewedByUser User?           @relation("ResultReviewedBy", fields: [reviewedBy], references: [id])
+  approvedByUser User?           @relation("ResultApprovedBy", fields: [approvedBy], references: [id])
+  history        ResultHistory[]
+
+  @@map("results")
+}
+
+model ResultHistory {
+  id        BigInt   @id @default(autoincrement())
+  resultId  BigInt   @map("result_id")
+  oldValue  String?  @map("old_value")
+  newValue  String?  @map("new_value")
+  changedBy BigInt?  @map("changed_by")
+  changedAt DateTime @default(now()) @map("changed_at")
+
+  result        Result @relation(fields: [resultId], references: [id], onDelete: Cascade)
+  changedByUser User?  @relation("ResultHistoryChangedBy", fields: [changedBy], references: [id])
+
+  @@map("result_history")
+}
+
+model Payment {
+  id          BigInt        @id @default(autoincrement())
+  orderId     BigInt        @map("order_id")
+  patientId   BigInt        @map("patient_id")
+  totalAmount Decimal       @map("total_amount") @db.Decimal(10, 2)
+  status      PaymentStatus @default(pending)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  order   Order         @relation(fields: [orderId], references: [id])
+  patient Patient       @relation(fields: [patientId], references: [id])
+  items   PaymentItem[]
+
+  @@map("payments")
+}
+
+model PaymentItem {
+  id            BigInt  @id @default(autoincrement())
+  paymentId     BigInt  @map("payment_id")
+  requestItemId BigInt  @map("request_item_id")
+  price         Decimal @db.Decimal(10, 2)
+
+  payment     Payment         @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  requestItem TestRequestItem @relation(fields: [requestItemId], references: [id])
+
+  @@map("payment_items")
+}
+
+model SupportRequest {
+  id                 BigInt        @id @default(autoincrement())
+  patientId          BigInt        @map("patient_id")
+  requestId          BigInt?       @map("request_id")
+  discountPercentage Int           @map("discount_percentage")
+  status             SupportStatus @default(pending)
+  createdAt          DateTime      @default(now()) @map("created_at")
+
+  patient Patient      @relation(fields: [patientId], references: [id])
+  request TestRequest? @relation(fields: [requestId], references: [id])
+
+  @@map("support_requests")
+}
+
+model Notification {
+  id        BigInt   @id @default(autoincrement())
+  userId    BigInt   @map("user_id")
+  message   String   @db.Text
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  userId     BigInt?  @map("user_id")
+  action     String
+  entityType String?  @map("entity_type")
+  entityId   BigInt?  @map("entity_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}

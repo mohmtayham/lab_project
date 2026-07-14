@@ -1,0 +1,14 @@
+{
+  "name": "hotal",
+  "private": true,
+  "packageManager": "pnpm@10.28.2",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "start": "turbo run start"
+  },
+  "devDependencies": {
+    "prisma": "^5.20.0",
+    "turbo": "^2.8.13"
+  }
+}
