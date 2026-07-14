@@ -157,6 +157,10 @@ model Patient {
   payments        Payment[]
   supportRequests SupportRequest[]
 
+  @@index([name])
+  @@index([phone])
+  @@index([email])
+  @@index([createdAt])
   @@map("patients")
 }
 
@@ -189,6 +193,8 @@ model Order {
   requests TestRequest[]
   payments Payment[]
 
+  @@index([status])
+  @@index([createdAt])
   @@map("orders")
 }
 
@@ -206,6 +212,8 @@ model TestRequest {
   samples         Sample[]
   supportRequests SupportRequest[]
 
+  @@index([status])
+  @@index([createdAt])
   @@map("test_requests")
 }
 
@@ -236,6 +244,8 @@ model Sample {
   request   TestRequest @relation(fields: [requestId], references: [id])
   collector User?       @relation("SampleCollectedBy", fields: [collectedBy], references: [id])
 
+  @@index([status])
+  @@index([createdAt])
   @@map("samples")
 }
 
@@ -271,6 +281,9 @@ model Result {
   approvedByUser User?           @relation("ResultApprovedBy", fields: [approvedBy], references: [id])
   history        ResultHistory[]
 
+  @@index([status])
+  @@index([createdAt])
+  @@index([updatedAt])
   @@map("results")
 }
 
@@ -301,6 +314,8 @@ model Payment {
   patient Patient       @relation(fields: [patientId], references: [id])
   items   PaymentItem[]
 
+  @@index([status])
+  @@index([createdAt])
   @@map("payments")
 }
 
@@ -327,6 +342,7 @@ model SupportRequest {
   patient Patient      @relation(fields: [patientId], references: [id])
   request TestRequest? @relation(fields: [requestId], references: [id])
 
+  @@index([status])
   @@map("support_requests")
 }
 
@@ -339,6 +355,7 @@ model Notification {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, isRead])
   @@map("notifications")
 }
 
